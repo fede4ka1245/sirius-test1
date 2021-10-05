@@ -1,34 +1,31 @@
 const express = require('express')
 const { nanoid } = require('nanoid')
-const Url = require(`./db.js`)
-const mongoose = require(`mongoose`);
+const {Url} = require('./db.js')
+const {startDatabase} = require('./db.js')
+
+startDatabase()
 
 const app = express();
 const jsonParser = express.json();
 
-mongoose.connect("mongodb://localhost:27017/usersdb")
-const db = mongoose.connection
-db.on('error', (error) => console.error(error))
-db.once('open', () => console.log('Connected to Database'))
-
 app.post(`/shorten`, jsonParser, async (req, res) => {
   try{
-    let url = req.body.urlToShorten
-    let token = nanoid()
+    const url = req.body.urlToShorten
+    const token = nanoid()
 
     const newUrl = new Url({
-      url: url,
-      token: token,
+      url,
+      token,
     })
 
     await newUrl.save()
 
-    let resData = {
+    const resData = {
       status: "Created",
       shortenedUrl: `http://localhost:3000/${token}`
     };
 
-    res.status(201).send(JSON.stringify(resData))
+    res.status(201).json(resData)
   } catch (err) {
     res.status(400).json({ status: err.message })
   }
@@ -37,7 +34,7 @@ app.post(`/shorten`, jsonParser, async (req, res) => {
 app.get(`/:url`, async (req, res) => {
   try {
     const token = req.params.url
-    const longUrl = await Url.findOne({token: token})
+    const longUrl = await Url.findOne({token})
     await Url.updateOne(longUrl, {views: longUrl.views + 1})
     res.redirect(longUrl.url)
     // res.status(301).send(JSON.stringify({
@@ -51,14 +48,13 @@ app.get(`/:url`, async (req, res) => {
 app.get(`/:url/views`, async (req, res) => {
   try {
     const token = req.params.url
-    const longUrl = await Url.findOne({token: token})
-    let viewCount = longUrl.views
-    res.status(200).send(JSON.stringify({
-      "viewCount": viewCount
-    }))
+    const longUrl = await Url.findOne({token})
+    res.status(200).json({
+      "viewCount": longUrl.views
+    })
   } catch (err){
     res.status(400).json({ status: err.message })
   }
 })
 
-app.listen(3000);
+app.listen(3000, () => console.log('Server was started'))
